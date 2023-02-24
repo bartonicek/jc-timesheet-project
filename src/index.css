@@ -1,0 +1,22 @@
+body {
+    color: #252627;
+    background-color: #F2EFE9
+}
+
+
+
+td {
+    width: 20vw;
+    height: 5vw;
+    text-align: center;
+    color: #F2EFE9;
+    background-color: #419D78 ;
+    padding-left: 2vw;
+    padding-right: 2vw;
+}
+
+tr:nth-child(even) td {
+    background-color: #647AA3;
+    color: #F2EFE9;
+
+}
