@@ -13,16 +13,14 @@ const App: Component = () => {
   const [staff, setStaff] = createSignal([])
   const [selectedStaff, setSelectedStaff] = createSignal("All")
   const [selectedPeriod, setSelectedPeriod] = createSignal("All")
-  const [fetchClick, setFetchClick] = createSignal(true)
+
+  const query = (): [string, string] => [selectedPeriod(), selectedStaff()]
   
-  const fetchAlloc = async (staff: string) => fetchAllocations(state, "All", staff)
-  const [allocations] = createResource(selectedStaff, fetchAlloc)
+  const fetchAlloc = async (query: [string, string]) => fetchAllocations(state, query[0], query[1])
+  const [allocations] = createResource(query, fetchAlloc)
 
-  createEffect(() => console.log(selectedStaff()))
+  // createEffect(() => console.log(selectedStaff()))
   // createEffect(() => console.log(selectedPeriod()))
-
-
-
   
   return (
     <div>

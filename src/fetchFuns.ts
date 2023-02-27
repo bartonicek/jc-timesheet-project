@@ -2,6 +2,22 @@ const sheetId = `1OZf35hceC_sSTTMxFut2467Y7Y2t8oCmMUbF3tNKTes`;
 const base = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?`;
 const sheetTitle = `Semester_1`;
 const sheetRangeRow1 = `1:1`;
+const invalidStaff = [
+  "ENGSCI",
+  "FORSCI",
+  "COMPSCI",
+  "MATH",
+  "RONZ",
+  "OTAGO",
+  "SBS",
+  "SCIFAC",
+];
+
+const sheetDict = {
+  "Summer Semester": "Summer",
+  "Semester One": "Semester_1",
+  "Semester Two": "Semester_2",
+};
 
 export const fetchData = async (url: string) => {
   return fetch(url)
@@ -27,26 +43,31 @@ export const fetchColNameDict = async () => {
   return dict;
 };
 
-export const fetchStaffNames = async (state: Record<string, any>) => {
-  const staffCols = state.colNameDict.Staff;
+export const fetchStaffNames = async (colNameDict: Record<string, any>) => {
+  const staffCols = colNameDict.Staff;
   const query = `select ${staffCols.join(", ")}`;
   const url = `${base}&sheet=${sheetTitle}&tq=${encodeURIComponent(query)}`;
   const result = await fetchData(url);
-  const staffNames = result.table.rows
+
+  let staffNames = result.table.rows
     .flatMap((x: any) => x.c.flatMap((y: any) => y?.v))
-    .filter((z: any) => ![null, undefined].includes(z));
-  return staffNames;
+    .filter(
+      (z: any) => !invalidStaff.includes(z) && ![null, undefined].includes(z)
+    );
+  staffNames.sort().unshift("All");
+  return Array.from(new Set(staffNames));
 };
 
-export const fetchAllocations = async (
-  state: Record<string, any>,
-  period: string,
-  staff: string
-) => {
-  if (!state.colNameDict || !state.staffNames) return;
+export const fetchAllocations = async (queryDeps: {
+  colNameDict: Record<string, string[]>;
+  semester: "" | "Summer Semester" | "Semester One" | "Semester Two";
+  staff: string;
+}) => {
+  const { colNameDict, staff, semester } = queryDeps;
+  if (!colNameDict || staff === "" || semester === "") return {};
 
-  const staffCols = state.colNameDict.Staff;
-  const weightCols = state.colNameDict.Weight;
+  const staffCols = colNameDict.Staff;
+  const weightCols = colNameDict.Weight;
   const allCols = staffCols.flatMap((e: any, i: any) => [e, weightCols[i]]);
 
   const query =
@@ -56,7 +77,11 @@ export const fetchAllocations = async (
           ` = "${staff}" or `
         )} = "${staff}"`;
 
-  const url = `${base}&sheet=${sheetTitle}&tq=${encodeURIComponent(query)}`;
+  console.log(queryDeps);
+
+  const url = `${base}&sheet=${sheetDict[semester]}&tq=${encodeURIComponent(
+    query
+  )}`;
 
   const result = await fetchData(url);
   const rows = result.table.rows;
@@ -65,16 +90,17 @@ export const fetchAllocations = async (
     let lastStaff = "";
     nextRow.c.forEach((cell: any) => {
       if (typeof cell?.v === "string") lastStaff = cell?.v;
-      if (!(lastStaff in result)) result[lastStaff] = 0;
-      if (typeof cell?.v === "number") result[lastStaff] += cell?.v;
+      if (invalidStaff.includes(lastStaff)) return;
+      if (
+        (staff === "All" || lastStaff === staff) &&
+        typeof cell?.v === "number"
+      ) {
+        if (!(lastStaff in result)) result[lastStaff] = 0;
+        result[lastStaff] += cell?.v;
+      }
     });
     return result;
   }, {});
 
-  const staffArr = staff === "All" ? state.staffNames : [staff];
-  const allocationsFiltered = Object.fromEntries(
-    Object.entries(allocations).filter((x) => staffArr.includes(x[0]))
-  );
-
-  return allocationsFiltered;
+  return allocations;
 };
